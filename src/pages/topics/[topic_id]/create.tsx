@@ -1,25 +1,75 @@
+import { AppFileUpload } from "@/components/common";
 import { AppEditor } from "@/components/common/AppEditor";
-import { Button, Input, SelectTrigger, Skeleton } from "@/components/ui";
+import { Button, Input, Skeleton, Select, SelectTrigger, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectValue } from "@/components/ui";
 import { TOPIC_CATEGORY } from "@/constants/category.constant";
+import supabase from "@/lib/supabase";
+import { useAuthStore } from "@/stores";
+import type { Block } from "@blocknote/core";
 import { Label } from "@radix-ui/react-label";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectValue } from "@radix-ui/react-select";
 import { ArrowLeft, Asterisk, BookOpenCheck, ImageOff, Save } from "lucide-react";
+import { useState } from "react";
+import { useParams } from "react-router";
+import { toast } from "sonner";
 
 export default function CreateTopic() {
+  const user = useAuthStore((state) => state.user);
+  const { id } = useParams();
+
+  const [title, setTitle] = useState<string>("");
+  const [content, setContent] = useState<Block[]>([]);
+  const [category, setCategory] = useState<string>("");
+  const [thumbnail, setThumbnail] = useState< File | string | null>(null);
+  const handleSave = async () => {
+
+    if (!title && !content && !category && !thumbnail) {
+      toast.warning("제목, 본문, 카테고리, 썸네일을 기입하세요.");
+      return;
+    }
+
+    console.log("title: ", title);
+    console.log("content: ", content);
+    console.log("category: ", category);
+    console.log("thumbnail: ", thumbnail);
+
+    const { data, error } = await supabase
+      .from('topic')
+      // key와 value 값이 같을 때 value 생략 가능!!!
+      //.insert([{title, content, category, thumbnail, author: user.id,}])
+      .update([{ title, content, category, thumbnail, author: user.id, }])
+      .eq("id", id)
+      .select()
+
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+
+    if (data) {
+      toast.success("작성 중인 토픽을 성공하였습니다.");
+      return; 
+    }
+  };
+  const handlePublish = async () => {
+    if (!title || !content || !category || !thumbnail) {
+      toast.warning("제목, 본문, 카테고리, 썸네일은 필수값입니다.")
+      return;
+    }
+  }
   return <main className="w-full h-full min-h-[1024px] flex gap-6 p-6">
     <div className="fixed right-1/2 bottom-10 bottom-10 translate-x-1/2 z-20 flex items-center gap-2">
       <Button variant={"outline"} size={"icon"}>
         <ArrowLeft />
       </Button>
-      <Button variant={"outline"} className="w-22 !bg-yellow-800/50">
+      <Button type="button" variant={"outline"} className="w-22 !bg-yellow-800/50" onClick={handleSave}>
         <Save />
         저장
       </Button>
-      <Button variant={"outline"} className="w-22 !bg-emerald-800/50">
+      <Button type="button" variant={"outline"} className="w-22 !bg-emerald-800/50" onClick={handlePublish}>
         <BookOpenCheck />
         발행
       </Button>
     </div>
+
     {/* 토픽 작성 영역  */}
     <section className="w-3/4 h-full flex flex-col gap-6">
       <div className="flex flex-col pb-6 border-b">
@@ -31,7 +81,7 @@ export default function CreateTopic() {
           <Asterisk size={14} className="text-[#F96859]" />
           <Label className="text-muted-foreground">제목</Label>
         </div>
-        <Input placeholder="토픽 제목을 입력해주세요." className="h-16 pl-6 !text-lg placeholder:font-semibold border-0" />
+        <Input placeholder="토픽 제목을 입력해주세요." value={title} onChange={(event) => setTitle(event.target.value)} className="h-16 pl-6 !text-lg placeholder:font-semibold border-0" />
       </div>
       <div className="flex flex-col gap-2">
         <div className="flex items-center gap-1">
@@ -40,7 +90,7 @@ export default function CreateTopic() {
         </div>
         {/* <Skeleton className="w-full h-100" /> */}
         {/* BlockNote Text Editor UI */}
-        <AppEditor />
+        <AppEditor setContent={setContent} />
       </div>
     </section>
     {/* 카테고리 및 썸네일 등록  */}
@@ -54,7 +104,7 @@ export default function CreateTopic() {
           <Asterisk size={14} className="text-[#F96859]" />
           <Label className="text-muted-foreground">카테고리</Label>
         </div>
-        <Select>
+        <Select onValueChange={(value) => setCategory(value)}>
           <SelectTrigger className="w-full">
             <SelectValue placeholder="토픽(주제) 선택" />
           </SelectTrigger>
@@ -78,8 +128,10 @@ export default function CreateTopic() {
           <Asterisk size={14} className="text-[#96859]" />
           <Label className="text-muted-foreground">썸네일</Label>
         </div>
-        <Skeleton className="w-full aspect-video" />
-        <Button variant={"outline"} className="border-0">
+        {/* 썸네일 UI */}
+        {/* <Skeleton className="w-full aspect-video" /> */}
+        <AppFileUpload file={thumbnail} onChange={setThumbnail} />
+        <Button variant={"outline"} className="border-0" onClick={()=> setThumbnail(null)}>
           <ImageOff />
           썸네일 제거
         </Button>
