@@ -1,7 +1,11 @@
 import { Button, Form, FormControl, FormField, FormItem, FormLabel, FormMessage, Input } from "@/components/ui";
+import supabase from "@/lib/supabase";
+import { useAuthStore } from "@/stores";
+
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { NavLink } from "react-router";
+import { NavLink, useNavigate } from "react-router";
+import { toast } from "sonner";
 import { z } from "zod";
 
 const formSchema = z.object({
@@ -14,6 +18,7 @@ const formSchema = z.object({
 });
 
 export default function SignIn() {
+  const navigate = useNavigate();
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -21,9 +26,47 @@ export default function SignIn() {
       password: "",
     },
   });
+  const setUser = useAuthStore((state) => state.setUser);
+  // const setId = useAuthStore((state) => state.setId);
+  // const setEmail = useAuthStore((state) => state.setEmail);
+  // const setRole = useAuthStore((state) => state.setRole);
 
-  const onSubmit = () => {
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
     console.log("로그인 버튼 클릭!");
+    try {
+      const { 
+        data: { user, session}, 
+        error,
+      } = await supabase.auth.signInWithPassword({
+        email: values.email,
+        password: values.password,
+      })
+
+      if(error){
+        toast.error(error.message);
+        return;
+      }
+      
+      if(user && session){
+        //data는 2개의 객체 데이터를 전달한다
+        // 1. session
+        // 2. user
+        setUser({
+          id: user.id,
+          email: user.email as string,
+          role: user.role as string,
+        })
+        // setId(user.id);
+        // setEmail(user.email as string);
+        // setRole(user.role as string);
+        toast.success("로그인을 성공하였습니다.");
+        navigate("/");
+      }
+
+    } catch (error) {
+      console.log(error);
+      throw new Error(`${error}`);
+    }
   };
 
   return (
@@ -71,7 +114,7 @@ export default function SignIn() {
                   <FormItem>
                     <FormLabel>비밀번호</FormLabel>
                     <FormControl>
-                      <Input placeholder="비밀번호를 입력해세요." {...field} />
+                      <Input type="password" placeholder="비밀번호를 입력하세요." {...field} />
                     </FormControl>
                     <FormMessage className="text-xs" />
                   </FormItem>
@@ -83,7 +126,7 @@ export default function SignIn() {
                 </Button>
                 <div className="text-center">
                   계정이 없으신가요?
-                  <NavLink to={"sign-up"} className="underline ml-1">
+                  <NavLink to={"/sign-up"} className="underline ml-1">
                     회원가입
                   </NavLink>
                 </div>
