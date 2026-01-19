@@ -7,18 +7,51 @@ import { useAuthStore } from "@/stores";
 import type { Block } from "@blocknote/core";
 import { Label } from "@radix-ui/react-label";
 import { ArrowLeft, Asterisk, BookOpenCheck, ImageOff, Save } from "lucide-react";
-import { useState } from "react";
-import { useParams } from "react-router";
+import { useEffect, useState } from "react";
+import { Navigate, useParams } from "react-router";
 import { toast } from "sonner";
+import { nanoid as generateId } from "nanoid";
+import { TOPIC_STATUS } from "@/types/topic.type";
+
 
 export default function CreateTopic() {
   const user = useAuthStore((state) => state.user);
   const { id } = useParams();
+  const navigate = useNavigate();
 
   const [title, setTitle] = useState<string>("");
   const [content, setContent] = useState<Block[]>([]);
   const [category, setCategory] = useState<string>("");
-  const [thumbnail, setThumbnail] = useState< File | string | null>(null);
+  const [thumbnail, setThumbnail] = useState<File | string | null>(null);
+
+  useEffect(() => {
+    if (id) fetchTopic();
+  }, [id]);
+
+  const fetchTopic = async () => {
+    try {
+      const { data: topic, error } = await supabase.from("topic").select("*").eq("id", id).single();
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+      if (topic) {
+        setTitle(topic.title || "");
+        if (topic.content) {
+          try {
+            setContent(JSON.parse(topic.content));
+          } catch (e) {
+            console.error("Content parsing error:", e);
+            setContent([]);
+          }
+        }
+        setCategory(topic.category || "");
+        setThumbnail(topic.thumbnail || null);
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  }
   const handleSave = async () => {
 
     if (!title && !content && !category && !thumbnail) {
@@ -26,16 +59,46 @@ export default function CreateTopic() {
       return;
     }
 
-    console.log("title: ", title);
-    console.log("content: ", content);
-    console.log("category: ", category);
-    console.log("thumbnail: ", thumbnail);
 
+    // 1. 파일 업로드 시, supabase의 Storage 즉, bucket 폴더에 이미지를 먼저 업로드 한 후
+    // 이미지가 저장된 bucket 폴더의 경로 url 주소를 우리가 관리하고 있는 topic 테이블 thumbnail 컬럼에 문자열 형태
+    // 즉, string 타입( DB에서는 Text 타입)으로 저장한다.
+    console.log("thumbnail : ", thumbnail)
+
+    let thumbnailUrl: string | null = null;
+
+    if (thumbnail && thumbnail instanceof File) {
+      //썸네일 이미지를 storage에 업로드
+      const fileExt = thumbnail.name.split(".").pop(); // 파일 확장자 추출
+      //npm install nanoid
+      const fileName = `${generateId()}.${fileExt}`; // 새로운 파일 이름 + 확장자로 저장
+      const filePath = `topics/${fileName}`; // 파일 경로 설정
+
+      const { error: uploadError } = await supabase.storage.from("files").upload(filePath, thumbnail);
+
+      if (uploadError) throw uploadError;
+
+      //2. 업로드된 이미지의 public url 주소 가져오기
+      const { data } = supabase.storage.from("files").getPublicUrl(filePath);
+      if (!data) throw new Error("썸네일 이미지의 publicUrl을 가져오지 못했습니다.");
+      thumbnailUrl = data.publicUrl;
+
+    }
     const { data, error } = await supabase
       .from('topic')
-      // key와 value 값이 같을 때 value 생략 가능!!!
+      // key와 value 값이 같을 때 value 생략 가능!!!(insert)
       //.insert([{title, content, category, thumbnail, author: user.id,}])
-      .update([{ title, content, category, thumbnail, author: user.id, }])
+      // key와 value 값이 같을 때 value 생략 가능!!!(update)
+      .update([
+        {
+          title,
+          content: JSON.stringify(content),
+          category,
+          thumbnail: thumbnailUrl,
+          author: user.id,
+          status: TOPIC_STATUS.PUBLISH
+        }
+      ])
       .eq("id", id)
       .select()
 
@@ -45,8 +108,9 @@ export default function CreateTopic() {
     }
 
     if (data) {
-      toast.success("작성 중인 토픽을 성공하였습니다.");
-      return; 
+      toast.success("토픽을 성공하였습니다.");
+      navigate(`/topics`);
+      return;
     }
   };
   const handlePublish = async () => {
@@ -90,7 +154,7 @@ export default function CreateTopic() {
         </div>
         {/* <Skeleton className="w-full h-100" /> */}
         {/* BlockNote Text Editor UI */}
-        <AppEditor setContent={setContent} />
+        <AppEditor initialBlocks={content} setContent={setContent} />
       </div>
     </section>
     {/* 카테고리 및 썸네일 등록  */}
@@ -104,7 +168,7 @@ export default function CreateTopic() {
           <Asterisk size={14} className="text-[#F96859]" />
           <Label className="text-muted-foreground">카테고리</Label>
         </div>
-        <Select onValueChange={(value) => setCategory(value)}>
+        <Select value={category} onValueChange={(value) => setCategory(value)}>
           <SelectTrigger className="w-full">
             <SelectValue placeholder="토픽(주제) 선택" />
           </SelectTrigger>
@@ -131,7 +195,7 @@ export default function CreateTopic() {
         {/* 썸네일 UI */}
         {/* <Skeleton className="w-full aspect-video" /> */}
         <AppFileUpload file={thumbnail} onChange={setThumbnail} />
-        <Button variant={"outline"} className="border-0" onClick={()=> setThumbnail(null)}>
+        <Button variant={"outline"} className="border-0" onClick={() => setThumbnail(null)}>
           <ImageOff />
           썸네일 제거
         </Button>
