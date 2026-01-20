@@ -1,6 +1,6 @@
 import { AppFileUpload } from "@/components/common";
 import { AppEditor } from "@/components/common/AppEditor";
-import { Button, Input, Skeleton, Select, SelectTrigger, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectValue } from "@/components/ui";
+import { Button, Input, Select, SelectTrigger, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectValue } from "@/components/ui";
 import { TOPIC_CATEGORY } from "@/constants/category.constant";
 import supabase from "@/lib/supabase";
 import { useAuthStore } from "@/stores";
@@ -8,7 +8,7 @@ import type { Block } from "@blocknote/core";
 import { Label } from "@radix-ui/react-label";
 import { ArrowLeft, Asterisk, BookOpenCheck, ImageOff, Save } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Navigate, useParams } from "react-router";
+import { useNavigate, useParams } from "react-router";
 import { toast } from "sonner";
 import { nanoid as generateId } from "nanoid";
 import { TOPIC_STATUS } from "@/types/topic.type";

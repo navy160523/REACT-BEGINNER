@@ -7,10 +7,34 @@ import { CircleSmall, NotebookPen, PencilLine } from "lucide-react";
 import { toast } from "sonner";
 import supabase from "@/lib/supabase";
 import { AppDraftsDialog } from "@/components/common";
+import { useEffect, useState } from "react";
+import type { Topic } from "@/types/topic.type";
+import { NewTopicCard } from "@/components/topics";
 
 function App() {
   const user = useAuthStore((state) => state.user);
   const navigate = useNavigate();
+
+  const [topics, setTopics] = useState<Topic[]>([]);
+
+  //발행된 토픽 조회
+  const fetchTopic = async () => {
+    try {
+      let { data: topics, error } = await supabase.from('topic').select("*").eq("status", "publish");
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+      if (topics) {
+        console.log("topics : ", topics)
+        setTopics(topics);
+      }
+    } catch (error) {
+      console.log(error);
+      throw error;
+    }
+  };
+
 
   //나만의 토픽 생성 버튼 클릭
   const handleroute = async () => {
@@ -47,6 +71,10 @@ function App() {
 
     navigate('/topic/create')
   };
+
+  useEffect(() => {
+    fetchTopic();
+  }, []);
 
   return (
     <main className="w-full h-full min-h-[720px] flex flex-col lg:flex-row p-3 sm:p-4 lg:p-6 gap-3 sm:gap-4 lg:gap-6">
@@ -87,7 +115,7 @@ function App() {
             <SkeletonHotTopic />
           </div>
         </div>
-        {/* 뉴 토픽 */}
+        {/* NEW 토픽 */}
         <div className="w-full flex flex-col gap-6">
           <div className="flex flex-col gap-1">
             <div className="flex items-center gap-2">
@@ -96,12 +124,19 @@ function App() {
             </div>
             <p className="text-xs sm:text-sm lg:text-base text-muted-foreground"> 새로운 시선으로, 새로운 이야기를 시작하세요. 지금 바로 당신만의 토픽을 작성해보세요.</p>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-3 sm:gap-4 lg:gap-6">
-            <SkeletonNewTopic />
-            <SkeletonNewTopic />
-            <SkeletonNewTopic />
-            <SkeletonNewTopic />
-          </div>
+          {topics.length > 0 ? (
+            <div className="min-h-120 grid grid-cols-2 gap-6">
+              {topics.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+                .map((topic: Topic) => {
+                  return <NewTopicCard key={topic.id} props={topic} />
+                })}
+            </div>
+          ) : (
+            <div className="w-full flex items-center justify-center">
+              <p className="text-muted-foreground">조회 가능한 토픽이 없습니다.</p>
+            </div>
+          )}
+
         </div>
       </section>
     </main>

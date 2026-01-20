@@ -4,7 +4,7 @@ import { Image } from "lucide-react";
 
 interface Props {
   file: File | string | null;
-  onChangeL: (file: File | string | null) => void;
+  onChange: (file: File | string | null) => void;
 }
 
 export function AppFileUpload({ file, onChange }: Props) {
@@ -12,7 +12,7 @@ export function AppFileUpload({ file, onChange }: Props) {
 
 
   //1. 파일 변경 감지 및 상위 컴포넌트 전달
-  const handleChangeFile = (event:React.ChangeEvent<HTMLInputElement>) => {
+  const handleChangeFile = (event: React.ChangeEvent<HTMLInputElement>) => {
     console.log(event.target);
     onChange(event.target.files?.[0] ?? null);
 
@@ -31,7 +31,7 @@ export function AppFileUpload({ file, onChange }: Props) {
     //썸네일이 설정되지 않은 경우에는 기본 이미지 아이콘을 보여줍니다.
     return (
       <div className="w-full flex items-center justify-center aspect-video bg-card rounded-lg">
-        <Button size={"icon"} variant={"ghost"} onClick={()=> fileInputRef.current?.click()}>
+        <Button size={"icon"} variant={"ghost"} onClick={() => fileInputRef.current?.click()}>
           <Image />
         </Button>
       </div>
